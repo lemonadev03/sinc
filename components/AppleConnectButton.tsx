@@ -12,7 +12,8 @@ declare global {
 }
 
 interface MusicKitInstance {
-  authorize: () => Promise<{ musicUserToken: string }>;
+  // v3 resolves the Music User Token string directly; some builds wrap it
+  authorize: () => Promise<string | { musicUserToken: string }>;
 }
 
 const MUSICKIT_SRC = "https://js-cdn.music.apple.com/musickit/v3/musickit.js";
@@ -36,7 +37,12 @@ export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
       const instance = await window.MusicKit!.configure({ developerToken });
 
       setState("authorizing");
-      const { musicUserToken } = await instance.authorize();
+      const result = await instance.authorize();
+      const musicUserToken =
+        typeof result === "string" ? result : result?.musicUserToken;
+      if (!musicUserToken || musicUserToken.length < 20) {
+        throw new Error("Apple did not return a valid music user token");
+      }
 
       const res = await fetch("/api/apple/connect", {
         method: "POST",
