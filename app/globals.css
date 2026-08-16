@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #09090b;
+  color: #f4f4f5;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5;
+  }
+  .btn-primary {
+    @apply btn bg-violet-600 text-white hover:bg-violet-500;
+  }
+  .btn-secondary {
+    @apply btn border border-zinc-700 bg-zinc-800/60 text-zinc-200 hover:bg-zinc-800;
+  }
+  .btn-ghost {
+    @apply btn text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60;
+  }
+  .input {
+    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-violet-500;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500;
+  }
+}
