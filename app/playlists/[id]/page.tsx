@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { ProviderBadge, StatusPill, timeAgo } from "@/components/ui";
+import { SubmitButton } from "@/components/SubmitButton";
 import { syncNowAction, toggleSyncAction } from "@/app/actions";
 
 export default async function CanonicalPlaylistPage({ params }: { params: Promise<{ id: string }> }) {
@@ -101,16 +102,16 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
         <div className="flex items-center gap-2">
           <form action={syncNowAction}>
             <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
-            <button type="submit" className="btn-primary">
+            <SubmitButton className="btn-primary" pendingLabel="Syncing…">
               ⟳ Sync now
-            </button>
+            </SubmitButton>
           </form>
           <form action={toggleSyncAction}>
             <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
             <input type="hidden" name="enabled" value={canonical.syncEnabled ? "false" : "true"} />
-            <button type="submit" className="btn-secondary">
+            <SubmitButton className="btn-secondary" pendingLabel="…">
               {canonical.syncEnabled ? "Pause" : "Resume"}
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>
@@ -145,9 +146,9 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
                 </div>
                 <form action={syncNowAction}>
                   <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
-                  <button type="submit" className="btn-secondary shrink-0 text-xs">
+                  <SubmitButton className="btn-secondary shrink-0 text-xs" pendingLabel="Retrying…">
                     Retry match
-                  </button>
+                  </SubmitButton>
                 </form>
               </div>
             ))}

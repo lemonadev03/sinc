@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { ProviderBadge, StatusPill, timeAgo, EmptyState } from "@/components/ui";
+import { SubmitButton } from "@/components/SubmitButton";
 import { syncNowAction, toggleSyncAction } from "../actions";
 
 export default async function DashboardPage() {
@@ -139,16 +140,16 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <form action={syncNowAction}>
                     <input type="hidden" name="canonicalPlaylistId" value={c.id} />
-                    <button type="submit" className="btn-secondary">
+                    <SubmitButton className="btn-secondary" pendingLabel="Syncing…">
                       ⟳ Sync now
-                    </button>
+                    </SubmitButton>
                   </form>
                   <form action={toggleSyncAction}>
                     <input type="hidden" name="canonicalPlaylistId" value={c.id} />
                     <input type="hidden" name="enabled" value={c.syncEnabled ? "false" : "true"} />
-                    <button type="submit" className="btn-ghost">
+                    <SubmitButton className="btn-ghost" pendingLabel="…">
                       {c.syncEnabled ? "Pause sync" : "Resume sync"}
-                    </button>
+                    </SubmitButton>
                   </form>
                   <Link href={`/playlists/${c.id}`} className="btn-ghost">
                     Details →
