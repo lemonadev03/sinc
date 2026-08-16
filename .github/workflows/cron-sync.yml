@@ -1,8 +1,8 @@
 name: cron-sync
 
+# Manual backup trigger only — the every-10-minute schedule lives in the
+# sinc-cron worker service on Railway (node-cron in scripts/cron.ts).
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
