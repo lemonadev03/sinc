@@ -15,7 +15,7 @@ interface MusicKitInstance {
   authorize: () => Promise<{ musicUserToken: string }>;
 }
 
-const MUSICKIT_SRC = "https://js-cdn.music.apple.com/musickit/v3/dist/musickit.js";
+const MUSICKIT_SRC = "https://js-cdn.music.apple.com/musickit/v3/musickit.js";
 
 export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
   const [state, setState] = useState<"idle" | "loading" | "authorizing" | "error">("idle");
