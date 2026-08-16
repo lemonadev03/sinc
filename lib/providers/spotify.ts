@@ -86,6 +86,9 @@ type SpPlaylist = {
   collaborative?: boolean;
   external_urls?: { spotify?: string };
   owner?: { id?: string };
+  // Feb 2026: playlist item summary renamed tracks -> items; `items` is only
+  // populated for playlists the user owns. Keep `tracks` as a legacy fallback.
+  items?: { total?: number };
   tracks?: { total?: number };
 };
 
@@ -101,6 +104,10 @@ type SpTrack = {
   external_ids?: { isrc?: string };
   album?: { name?: string };
 };
+
+// Feb 2026: the item wrapper's key is `item` (episode-capable); `track` is the
+// deprecated duplicate we accept as a fallback.
+type SpPlaylistItemEntry = { item?: SpTrack | null; track?: SpTrack | null };
 
 export class SpotifyAdapter implements MusicProviderAdapter {
   readonly provider = "spotify" as const;
@@ -131,7 +138,7 @@ export class SpotifyAdapter implements MusicProviderAdapter {
           editable: p.owner?.id != null && p.owner.id === this.myExternalId,
           ownerExternalId: p.owner?.id ?? null,
           providerRevision: p.snapshot_id ?? null,
-          trackCount: p.tracks?.total ?? 0,
+          trackCount: p.items?.total ?? p.tracks?.total ?? 0,
         });
       }
       if ((page.items ?? []).length < 50 || out.length > 10_000) break;
@@ -144,10 +151,11 @@ export class SpotifyAdapter implements MusicProviderAdapter {
     const out: ProviderTrack[] = [];
     let offset = 0;
     for (;;) {
-      const page = await this.api<{ items: { track: SpTrack | null }[] }>(
+      const page = await this.api<{ items: SpPlaylistItemEntry[] }>(
         `/playlists/${encodeURIComponent(playlistId)}/items?limit=100&offset=${offset}`
       );
-      for (const { track } of page.items ?? []) {
+      for (const entry of page.items ?? []) {
+        const track = entry.item ?? entry.track; // `item` is current; `track` deprecated
         if (!track || track.type !== "track" || !track.id) continue; // episodes, removed tracks
         out.push({
           providerTrackId: track.id,

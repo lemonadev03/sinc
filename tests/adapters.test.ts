@@ -23,7 +23,9 @@ describe("SpotifyAdapter (real adapter, stubbed HTTP)", () => {
           const items =
             offset === 0
               ? [
-                  { id: "pl1", name: "Gym", snapshot_id: "s1", external_urls: { spotify: "https://open.spotify.com/playlist/pl1" }, owner: { id: "me-user" }, tracks: { total: 12 } },
+                  // Feb 2026 shape: item count under `items.total`, present for owned playlists
+                  { id: "pl1", name: "Gym", snapshot_id: "s1", external_urls: { spotify: "https://open.spotify.com/playlist/pl1" }, owner: { id: "me-user" }, items: { total: 12 } },
+                  // followed playlist: no items summary at all
                   { id: "pl2", name: "Followed", owner: { id: "someone-else" }, tracks: { total: 3 } },
                 ]
               : [];
@@ -44,9 +46,37 @@ describe("SpotifyAdapter (real adapter, stubbed HTTP)", () => {
       editable: true,
       ownerExternalId: "me-user",
       providerRevision: "s1",
-      trackCount: 12,
+      trackCount: 12, // read from items.total, not the pre-2026 tracks.total
     });
     expect(playlists[1].editable).toBe(false); // followed playlist, different owner
+    expect(playlists[1].trackCount).toBe(3); // legacy fallback still honored
+  });
+
+  it("getPlaylistItems reads the current `item` wrapper key", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) => {
+        const u = String(url);
+        if (u.includes("/playlists/plX/items")) {
+          return jsonResponse({
+            items: [
+              { item: { id: "t1", uri: "spotify:track:t1", name: "Song", type: "track", duration_ms: 200000, explicit: false, artists: [{ name: "Artist" }], external_ids: { isrc: "GBAAA0000001" } } },
+              { item: { id: "e1", uri: "spotify:episode:e1", name: "Podcast", type: "episode" } }, // ignored
+              { item: null }, // removed track slot
+              { track: { id: "t2", uri: "spotify:track:t2", name: "Legacy Key", type: "track", artists: [{ name: "Old" }] } }, // deprecated fallback
+            ],
+          });
+        }
+        throw new Error(`unexpected fetch: ${u}`);
+      })
+    );
+
+    const adapter = new SpotifyAdapter(async () => "token", "me-user");
+    const items = await adapter.getPlaylistItems("plX");
+
+    expect(items.map((i) => i.providerTrackId)).toEqual(["t1", "t2"]);
+    expect(items[0]).toMatchObject({ isrc: "GBAAA0000001", title: "Song", artist: "Artist" });
+    expect(items[1].title).toBe("Legacy Key");
   });
 });
 
