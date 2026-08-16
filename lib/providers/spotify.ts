@@ -119,11 +119,10 @@ export class SpotifyAdapter implements MusicProviderAdapter {
   }
 
   async listPlaylists(): Promise<ProviderPlaylist[]> {
-    const call = this.api<{ items: SpPlaylist[] }>;
     const out: ProviderPlaylist[] = [];
     let offset = 0;
     for (;;) {
-      const page = await call(`/me/playlists?limit=50&offset=${offset}`);
+      const page = await this.api<{ items: SpPlaylist[] }>(`/me/playlists?limit=50&offset=${offset}`);
       for (const p of page.items ?? []) {
         out.push({
           providerPlaylistId: p.id,
