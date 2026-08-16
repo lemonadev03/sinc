@@ -74,7 +74,10 @@ export default async function PlaylistsPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-zinc-200">{r.name}</p>
                       <p className="text-xs text-zinc-500">
-                        {r.trackCount} tracks · scanned {timeAgo(r.lastScannedAt)}
+                        {r.provider === "apple" && r.trackCount === 0
+                          ? "count loads on first sync"
+                          : `${r.trackCount} tracks`}{" "}
+                        · scanned {timeAgo(r.lastScannedAt)}
                         {!r.editable && <span className="text-amber-500"> · read-only</span>}
                       </p>
                     </div>

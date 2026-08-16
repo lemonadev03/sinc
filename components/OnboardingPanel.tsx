@@ -149,7 +149,9 @@ function PlaylistCard({ p, selected, onToggle }: { p: PlaylistCardData; selected
         ) : null}
       </div>
       <span className="font-medium text-zinc-100">{p.name}</span>
-      <span className="text-xs text-zinc-500">{p.trackCount} tracks</span>
+      <span className="text-xs text-zinc-500">
+        {p.provider === "apple" && p.trackCount === 0 ? "count loads on first sync" : `${p.trackCount} tracks`}
+      </span>
     </button>
   );
 }
