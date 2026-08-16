@@ -92,8 +92,17 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
     .limit(10);
 
   const unmatched = await db
-    .select()
+    .select({
+      id: unmatchedTracks.id,
+      sourceProvider: unmatchedTracks.sourceProvider,
+      reason: unmatchedTracks.reason,
+      canonicalTrackId: unmatchedTracks.canonicalTrackId,
+      displayLabel: unmatchedTracks.displayLabel,
+      title: canonicalTracks.displayTitle,
+      artist: canonicalTracks.displayArtist,
+    })
     .from(unmatchedTracks)
+    .leftJoin(canonicalTracks, eq(canonicalTracks.id, unmatchedTracks.canonicalTrackId))
     .where(and(eq(unmatchedTracks.canonicalPlaylistId, id), eq(unmatchedTracks.status, "open")))
     .orderBy(desc(unmatchedTracks.lastAttemptAt));
 
@@ -120,7 +129,7 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
             <StatusPill status={canonical.lastSyncStatus} />
           </div>
           <p className="mt-1 text-sm text-zinc-500">
-            canonical playlist · {trackRows.length} tracks · mode {canonical.syncMode} ·{" "}
+            {trackRows.length} tracks ·{" "}
             {canonical.syncEnabled ? "sync on" : "sync paused"} · synced {timeAgo(canonical.lastSyncCompletedAt)}
           </p>
         </div>
@@ -140,6 +149,38 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
           </form>
         </div>
       </div>
+
+      {unmatched.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-zinc-100">
+            Can&apos;t sync {unmatched.length} song{unmatched.length === 1 ? "" : "s"}
+          </h2>
+          <p className="-mt-1 text-xs text-zinc-500">
+            these weren&apos;t found on the other service — they stay safe here, we retry automatically.
+          </p>
+          <div className="card divide-y divide-zinc-800/70 p-0">
+            {unmatched.map((u) => {
+              const label = u.title ? `${u.title} — ${u.artist}` : u.displayLabel ?? "Unknown track";
+              return (
+                <div key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-zinc-200">
+                      <ProviderBadge provider={u.sourceProvider} /> {label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-amber-500/90">{friendlyReason(u.reason)}</p>
+                  </div>
+                  <form action={syncNowAction}>
+                    <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+                    <SubmitButton className="btn-secondary shrink-0 text-xs" pendingLabel="Retrying…">
+                      Retry match
+                    </SubmitButton>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2">
         {links.map((l) => (
@@ -277,34 +318,10 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
         </div>
       </section>
 
-      {unmatched.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold text-zinc-100">Unmatched tracks ({unmatched.length})</h2>
-          <div className="card divide-y divide-zinc-800/70 p-0">
-            {unmatched.map((u) => (
-              <div key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm text-zinc-300">
-                    <ProviderBadge provider={u.sourceProvider} /> {u.sourceTrackId}
-                  </p>
-                  <p className="mt-0.5 text-xs text-amber-500/90">{u.reason}</p>
-                </div>
-                <form action={syncNowAction}>
-                  <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
-                  <SubmitButton className="btn-secondary shrink-0 text-xs" pendingLabel="Retrying…">
-                    Retry match
-                  </SubmitButton>
-                </form>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-zinc-100">Tracks (canonical order)</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">Tracks</h2>
         <div className="card divide-y divide-zinc-800/70 p-0">
-          {trackRows.length === 0 && <p className="px-4 py-6 text-sm text-zinc-500">No tracks ingested yet.</p>}
+          {trackRows.length === 0 && <p className="px-4 py-6 text-sm text-zinc-500">No tracks yet.</p>}
           {trackRows.map((t) => {
             const m = mappingMap.get(t.canonicalTrackId) ?? {};
             return (
@@ -314,16 +331,13 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
                     <span className="mr-2 text-xs text-zinc-600">{t.position}</span>
                     {t.title}
                   </p>
-                  <p className="truncate text-xs text-zinc-500">
-                    {t.artist}
-                    {t.isrc ? ` · ISRC ${t.isrc}` : " · no ISRC"}
-                  </p>
+                  <p className="truncate text-xs text-zinc-500">{t.artist}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 text-[11px]">
                   <ProviderBadge provider="spotify" />
-                  <span className={m.spotify ? "text-emerald-400" : "text-zinc-600"}>{m.spotify ?? "—"}</span>
+                  <span className={m.spotify ? "text-emerald-400" : "text-zinc-600"}>{m.spotify ? "✓" : "—"}</span>
                   <ProviderBadge provider="apple" />
-                  <span className={m.apple ? "text-emerald-400" : "text-zinc-600"}>{m.apple ?? "—"}</span>
+                  <span className={m.apple ? "text-emerald-400" : "text-zinc-600"}>{m.apple ? "✓" : "—"}</span>
                 </div>
               </div>
             );
@@ -361,4 +375,13 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
       </p>
     </div>
   );
+}
+
+function friendlyReason(raw: string): string {
+  if (raw.startsWith("local file")) return "local file — lives only on that device, can't be synced";
+  if (raw.includes("no match on apple")) return "not available on Apple Music";
+  if (raw.includes("no match on spotify")) return "not available on Spotify";
+  if (raw.includes("no confident metadata match")) return "couldn't be matched confidently";
+  if (raw.includes("missing title/artist")) return "missing title or artist";
+  return raw.replace(/\[\w+\]\s*/g, "");
 }

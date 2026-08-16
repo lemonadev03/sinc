@@ -206,6 +206,11 @@ export const unmatchedTracks = pgTable(
       .references(() => canonicalPlaylists.id, { onDelete: "cascade" }),
     sourceProvider: text("source_provider").notNull(),
     sourceTrackId: text("source_track_id").notNull(),
+    // to render the actual song (title/artist) instead of a provider id
+    canonicalTrackId: text("canonical_track_id").references(() => canonicalTracks.id, {
+      onDelete: "set null",
+    }),
+    displayLabel: text("display_label"),
     reason: text("reason").notNull(),
     status: text("status").notNull().default("open"), // open | matched | resolved
     firstSeenAt: ts("first_seen_at").notNull().defaultNow(),

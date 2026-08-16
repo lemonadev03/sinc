@@ -121,7 +121,9 @@ export async function syncCanonicalPlaylist(
         currentItemsByLink.set(link.ppRowId, items);
         for (const item of items) {
           if (item.isLocal) {
-            await recordUnmatched(db, canonicalPlaylistId, provider, item.providerTrackId, "local file — cannot be mirrored");
+            await recordUnmatched(db, canonicalPlaylistId, provider, item.providerTrackId, "local file — cannot be mirrored", {
+              displayLabel: `${item.title} — ${item.artist}`,
+            });
             continue;
           }
           const { inserted } = await ingestProviderTrack(db, userId, canonicalPlaylistId, provider, item);
@@ -234,7 +236,8 @@ export async function syncCanonicalPlaylist(
             canonicalPlaylistId,
             row.firstSeenProvider,
             mappingByTrack.get(row.canonicalTrackId)?.providerTrackId ?? row.canonicalTrackId,
-            `no match on ${provider}: ${resolution.reason}`
+            `no match on ${provider}: ${resolution.reason}`,
+            { canonicalTrackId: row.canonicalTrackId }
           );
         }
       }
@@ -305,7 +308,8 @@ export async function recordUnmatched(
   canonicalPlaylistId: string,
   sourceProvider: Provider | string,
   sourceTrackId: string,
-  reason: string
+  reason: string,
+  opts?: { canonicalTrackId?: string; displayLabel?: string }
 ): Promise<void> {
   const existing = (
     await db
@@ -323,7 +327,13 @@ export async function recordUnmatched(
   if (existing) {
     await db
       .update(unmatchedTracks)
-      .set({ lastAttemptAt: new Date(), reason, status: "open" })
+      .set({
+        lastAttemptAt: new Date(),
+        reason,
+        status: "open",
+        canonicalTrackId: opts?.canonicalTrackId ?? existing.canonicalTrackId,
+        displayLabel: opts?.displayLabel ?? existing.displayLabel,
+      })
       .where(eq(unmatchedTracks.id, existing.id));
   } else {
     await db.insert(unmatchedTracks).values({
@@ -332,6 +342,8 @@ export async function recordUnmatched(
       sourceProvider,
       sourceTrackId,
       reason,
+      canonicalTrackId: opts?.canonicalTrackId,
+      displayLabel: opts?.displayLabel,
     });
   }
 }
