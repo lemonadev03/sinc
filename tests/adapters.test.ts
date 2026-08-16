@@ -139,4 +139,29 @@ describe("AppleMusicAdapter (real adapter, stubbed HTTP)", () => {
     const res = await adapter.resolveTrack({ isrc: "GBAAA0000042", title: "Hit", artist: "Star", durationMs: 180000 });
     expect(res).toMatchObject({ status: "matched", providerTrackId: "am-song-42", matchMethod: "isrc" });
   });
+
+  it("treats 404/40403 on playlist tracks as an empty playlist, not an error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(
+          { errors: [{ id: "x", title: "No related resources", detail: "No related resources found for tracks", status: "404", code: "40403" }] },
+          404
+        )
+      )
+    );
+    const adapter = new AppleMusicAdapter(devToken, async () => "mut", "us");
+    await expect(adapter.getPlaylistItems("p.empty")).resolves.toEqual([]);
+  });
+
+  it("propagates a genuine playlist-deleted 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({ errors: [{ title: "Resource Not Found", status: "404", code: "40404" }] }, 404)
+      )
+    );
+    const adapter = new AppleMusicAdapter(devToken, async () => "mut", "us");
+    await expect(adapter.getPlaylistItems("p.deleted")).rejects.toThrow("playlist missing");
+  });
 });

@@ -1,5 +1,5 @@
 import { SignJWT, importPKCS8 } from "jose";
-import { providerFetchJson } from "./http";
+import { providerFetch, providerFetchJson } from "./http";
 import {
   type CreatePlaylistInput,
   type MusicProviderAdapter,
@@ -116,9 +116,25 @@ export class AppleMusicAdapter implements MusicProviderAdapter {
     const out: ProviderTrack[] = [];
     let offset = 0;
     for (;;) {
-      const page = await this.api<{ data: AmResource[] }>(
-        `/v1/me/library/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&offset=${offset}&include=catalog`
-      );
+      const url = `/v1/me/library/playlists/${encodeURIComponent(playlistId)}/tracks?limit=100&offset=${offset}&include=catalog`;
+      const res = await this.raw(url);
+      if (res.status === 404) {
+        const body = (await res.json().catch(() => null)) as { errors?: { code?: string }[] } | null;
+        // Apple 404s (code 40403, "No related resources") the tracks
+        // relationship of an EMPTY library playlist instead of returning [].
+        // A genuinely deleted playlist 404s with a different code.
+        if (body?.errors?.[0]?.code === "40403") return out;
+        const err = new Error(`[apple] GET ${url} -> 404 playlist missing`);
+        (err as Error & { status?: number }).status = 404;
+        throw err;
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const err = new Error(`[apple] GET ${url} -> ${res.status} ${text.slice(0, 300)}`);
+        (err as Error & { status?: number }).status = res.status;
+        throw err;
+      }
+      const page = (await res.json()) as { data: AmResource[] };
       for (const item of page.data ?? []) {
         // `include=catalog` materializes catalog attributes in relationships when available
         const catalog = item.relationships?.catalog?.data?.[0];
@@ -142,6 +158,17 @@ export class AppleMusicAdapter implements MusicProviderAdapter {
       offset += 100;
     }
     return out;
+  }
+
+  /** Authenticated raw request — lets callers inspect status codes directly. */
+  private async raw(path: string): Promise<Response> {
+    const [developerToken, mut] = await Promise.all([this.getDeveloperToken(), this.getMusicUserToken()]);
+    return providerFetch("apple", `${API}${path}`, {
+      headers: {
+        Authorization: `Bearer ${developerToken}`,
+        "Media-User-Token": mut,
+      },
+    });
   }
 
   async createPlaylist(input: CreatePlaylistInput): Promise<ProviderPlaylist> {
