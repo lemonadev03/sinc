@@ -124,3 +124,80 @@ export async function deleteAccountAction(): Promise<void> {
   await deleteUser(user.id);
   redirect("/");
 }
+
+// --- sharing ---
+
+import {
+  createOrGetShare,
+  revokeShare,
+  importShared,
+  detachFollow,
+  suggestTrack,
+  acceptSuggestion,
+  dismissSuggestion,
+} from "@/lib/sharing";
+import { createMirrorForCanonical } from "@/lib/sync/groups";
+
+export async function shareAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const canonicalPlaylistId = String(formData.get("canonicalPlaylistId") ?? "");
+  const revoke = String(formData.get("revoke") ?? "") === "true";
+  if (revoke) {
+    await revokeShare(user.id, canonicalPlaylistId);
+  } else {
+    await createOrGetShare(user.id, canonicalPlaylistId);
+  }
+  revalidatePath(`/playlists/${canonicalPlaylistId}`);
+}
+
+export async function importSharedAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const slug = String(formData.get("slug") ?? "");
+  const follow = String(formData.get("follow") ?? "") === "true";
+  const result = await importShared(user.id, slug, { follow });
+  if (!result.ok) redirect(`/shared/${slug}?error=${encodeURIComponent(result.error)}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/playlists");
+  redirect(`/playlists/${result.canonicalPlaylistId}`);
+}
+
+export async function detachFollowAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const canonicalPlaylistId = String(formData.get("canonicalPlaylistId") ?? "");
+  await detachFollow(user.id, canonicalPlaylistId);
+  revalidatePath(`/playlists/${canonicalPlaylistId}`);
+}
+
+export async function suggestTrackAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const canonicalPlaylistId = String(formData.get("canonicalPlaylistId") ?? "");
+  await suggestTrack(user.id, canonicalPlaylistId, {
+    title: String(formData.get("title") ?? ""),
+    artist: String(formData.get("artist") ?? ""),
+    isrc: String(formData.get("isrc") ?? "") || null,
+    durationMs: formData.get("durationMs") ? Number(formData.get("durationMs")) : null,
+    provider: String(formData.get("provider") ?? "") || null,
+    providerTrackId: String(formData.get("providerTrackId") ?? "") || null,
+  });
+  revalidatePath(`/playlists/${canonicalPlaylistId}`);
+}
+
+export async function suggestionDecisionAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const suggestionId = String(formData.get("suggestionId") ?? "");
+  const canonicalPlaylistId = String(formData.get("canonicalPlaylistId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (decision === "accept") await acceptSuggestion(user.id, suggestionId);
+  else if (decision === "dismiss") await dismissSuggestion(user.id, suggestionId);
+  revalidatePath(`/playlists/${canonicalPlaylistId}`);
+}
+
+export async function createMirrorAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const canonicalPlaylistId = String(formData.get("canonicalPlaylistId") ?? "");
+  const provider = String(formData.get("provider") ?? "");
+  if (provider !== "spotify" && provider !== "apple") return;
+  await createMirrorForCanonical(user.id, canonicalPlaylistId, provider);
+  revalidatePath(`/playlists/${canonicalPlaylistId}`);
+  revalidatePath("/dashboard");
+}

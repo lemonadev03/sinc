@@ -15,7 +15,18 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { ProviderBadge, StatusPill, timeAgo } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
-import { syncNowAction, toggleSyncAction } from "@/app/actions";
+import { SuggestBox } from "@/components/SuggestBox";
+import {
+  syncNowAction,
+  toggleSyncAction,
+  shareAction,
+  detachFollowAction,
+  suggestionDecisionAction,
+  createMirrorAction,
+} from "@/app/actions";
+import { getFollowForOwnCanonical, listSuggestions } from "@/lib/sharing";
+import { getAppUrl } from "@/lib/config";
+import { musicConnections, playlistShares } from "@/db/schema";
 
 export default async function CanonicalPlaylistPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
@@ -86,6 +97,20 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
     .where(and(eq(unmatchedTracks.canonicalPlaylistId, id), eq(unmatchedTracks.status, "open")))
     .orderBy(desc(unmatchedTracks.lastAttemptAt));
 
+  // sharing state
+  const follow = await getFollowForOwnCanonical(user.id, id);
+  const suggestions = await listSuggestions(user.id, id);
+  const share = (
+    await db.select().from(playlistShares).where(eq(playlistShares.canonicalPlaylistId, id)).limit(1)
+  )[0];
+  const connections = await db
+    .select({ provider: musicConnections.provider })
+    .from(musicConnections)
+    .where(eq(musicConnections.userId, user.id));
+  const connectedProviders = new Set(connections.map((c) => c.provider));
+  const linkedProviders = new Set(links.map((l) => l.provider));
+  const pendingSuggestions = (suggestions ?? []).filter((s) => s.status === "pending");
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -130,7 +155,127 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
             ) : null}
           </div>
         ))}
+        {(["spotify", "apple"] as const)
+          .filter((p) => !linkedProviders.has(p) && connectedProviders.has(p))
+          .map((p) => (
+            <form key={p} action={createMirrorAction} className="card flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-zinc-500">
+                <ProviderBadge provider={p} />
+                no {p === "spotify" ? "Spotify" : "Apple Music"} playlist yet
+              </div>
+              <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+              <input type="hidden" name="provider" value={p} />
+              <SubmitButton className="btn-secondary shrink-0 text-xs" pendingLabel="creating…">
+                + create mirror
+              </SubmitButton>
+            </form>
+          ))}
       </div>
+
+      {follow && (
+        <section className="card flex flex-wrap items-center justify-between gap-3 border-violet-900/50 bg-violet-950/10">
+          <div>
+            <p className="text-sm text-zinc-200">
+              {follow.detachedAt ? "detached from" : "following"}{" "}
+              <span className="font-semibold text-violet-300">{follow.ownerEmail}</span>&apos;s playlist
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              {follow.detachedAt
+                ? "your copy is now independent — new songs from the owner no longer flow in."
+                : "new songs the owner adds flow into this playlist on each sync."}
+            </p>
+          </div>
+          {!follow.detachedAt && (
+            <form action={detachFollowAction}>
+              <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+              <SubmitButton className="btn-secondary" pendingLabel="detaching…">
+                Detach
+              </SubmitButton>
+            </form>
+          )}
+        </section>
+      )}
+
+      {follow && !follow.detachedAt && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-zinc-100">Suggest a song back</h2>
+          <p className="-mt-1 text-xs text-zinc-500">your suggestion goes to {follow.ownerEmail} to accept or dismiss.</p>
+          <SuggestBox canonicalPlaylistId={canonical.id} />
+        </section>
+      )}
+
+      {pendingSuggestions.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-zinc-100">Suggestions for you ({pendingSuggestions.length})</h2>
+          <div className="card divide-y divide-zinc-800/70 p-0">
+            {pendingSuggestions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-zinc-200">
+                    {s.title} <span className="text-zinc-500">— {s.artist}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500">suggested by {s.suggesterEmail}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <form action={suggestionDecisionAction}>
+                    <input type="hidden" name="suggestionId" value={s.id} />
+                    <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+                    <input type="hidden" name="decision" value="accept" />
+                    <SubmitButton className="btn-primary text-xs" pendingLabel="adding…">
+                      ✓ Accept
+                    </SubmitButton>
+                  </form>
+                  <form action={suggestionDecisionAction}>
+                    <input type="hidden" name="suggestionId" value={s.id} />
+                    <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+                    <input type="hidden" name="decision" value="dismiss" />
+                    <SubmitButton className="btn-ghost text-xs" pendingLabel="…">
+                      Dismiss
+                    </SubmitButton>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="card flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-zinc-100">Share this playlist</p>
+          {share && !share.revokedAt ? (
+            <>
+              <p className="mt-1 break-all font-mono text-xs text-violet-300">{getAppUrl()}/shared/{share.slug}</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                anyone with a sinc account can follow or import · mirrors they create carry a
+                &ldquo;created and managed by sinc&rdquo; note
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-500">generate a link to let friends follow or import this playlist.</p>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {share && !share.revokedAt ? (
+            <>
+              <form action={shareAction}>
+                <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+                <input type="hidden" name="revoke" value="true" />
+                <SubmitButton className="btn-ghost" pendingLabel="…">
+                  Stop sharing
+                </SubmitButton>
+              </form>
+            </>
+          ) : (
+            <form action={shareAction}>
+              <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
+              <SubmitButton className="btn-primary" pendingLabel="creating…">
+                Create share link
+              </SubmitButton>
+            </form>
+          )}
+        </div>
+      </section>
 
       {unmatched.length > 0 && (
         <section className="flex flex-col gap-3">

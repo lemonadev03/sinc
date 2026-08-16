@@ -262,4 +262,26 @@ export class SpotifyAdapter implements MusicProviderAdapter {
     }
     return { status: "unmatched", reason: "no confident metadata match" };
   }
+
+  async searchTracks(term: string, limit = 8): Promise<ProviderTrack[]> {
+    const q = term.replace(/["\\]/g, " ").trim();
+    if (!q) return [];
+    const search = await this.api<{ tracks: { items: SpTrack[] } }>(
+      `/search?type=track&limit=${limit}&q=${encodeURIComponent(q)}`
+    );
+    return (search.tracks?.items ?? [])
+      .filter((t) => t.type === "track" && t.id)
+      .map((t) => ({
+        providerTrackId: t.id!,
+        providerUri: t.uri,
+        isrc: normalizeIsrc(t.external_ids?.isrc),
+        title: t.name ?? "",
+        artist: t.artists?.[0]?.name ?? "",
+        albumTitle: t.album?.name ?? null,
+        durationMs: t.duration_ms ?? null,
+        explicit: t.explicit ?? false,
+        isLocal: t.is_local ?? false,
+        inCatalog: !t.is_local,
+      }));
+  }
 }

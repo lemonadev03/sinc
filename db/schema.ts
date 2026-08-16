@@ -219,3 +219,71 @@ export const unmatchedTracks = pgTable(
     ),
   ]
 );
+
+// --- cross-user sharing ---
+
+export const playlistShares = pgTable(
+  "playlist_shares",
+  {
+    id: text("id").primaryKey(),
+    canonicalPlaylistId: text("canonical_playlist_id")
+      .notNull()
+      .references(() => canonicalPlaylists.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    revokedAt: ts("revoked_at"),
+  },
+  (t) => [
+    uniqueIndex("playlist_shares_canonical_idx").on(t.canonicalPlaylistId),
+    uniqueIndex("playlist_shares_slug_idx").on(t.slug),
+  ]
+);
+
+export const playlistFollows = pgTable(
+  "playlist_follows",
+  {
+    id: text("id").primaryKey(),
+    // the shared original
+    sourceCanonicalPlaylistId: text("source_canonical_playlist_id")
+      .notNull()
+      .references(() => canonicalPlaylists.id, { onDelete: "cascade" }),
+    // the follower's own copy (their canonical playlist)
+    followerCanonicalPlaylistId: text("follower_canonical_playlist_id")
+      .notNull()
+      .references(() => canonicalPlaylists.id, { onDelete: "cascade" }),
+    followerUserId: text("follower_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    detachedAt: ts("detached_at"),
+  },
+  (t) => [
+    uniqueIndex("playlist_follows_source_follower_idx").on(t.sourceCanonicalPlaylistId, t.followerUserId),
+    index("playlist_follows_follower_canonical_idx").on(t.followerCanonicalPlaylistId),
+  ]
+);
+
+export const trackSuggestions = pgTable(
+  "track_suggestions",
+  {
+    id: text("id").primaryKey(),
+    canonicalPlaylistId: text("canonical_playlist_id") // the OWNER's canonical
+      .notNull()
+      .references(() => canonicalPlaylists.id, { onDelete: "cascade" }),
+    suggesterUserId: text("suggester_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    artist: text("artist").notNull(),
+    isrc: text("isrc"),
+    durationMs: integer("duration_ms"),
+    provider: text("provider"),
+    providerTrackId: text("provider_track_id"),
+    status: text("status").notNull().default("pending"), // pending | accepted | dismissed
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("track_suggestions_canonical_idx").on(t.canonicalPlaylistId, t.status)]
+);

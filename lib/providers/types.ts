@@ -51,6 +51,8 @@ export interface MusicProviderAdapter {
     durationMs: number | null;
     explicitHint?: boolean;
   }): Promise<TrackResolution>;
+  /** Catalog search for user-facing pickers (suggestions). Optional. */
+  searchTracks?(term: string, limit?: number): Promise<ProviderTrack[]>;
 }
 
 export class ProviderAuthError extends Error {

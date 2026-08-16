@@ -272,4 +272,29 @@ export class AppleMusicAdapter implements MusicProviderAdapter {
     }
     return { status: "unmatched", reason: "no catalog match in storefront" };
   }
+
+  async searchTracks(term: string, limit = 8): Promise<ProviderTrack[]> {
+    const t = term.trim();
+    if (!t) return [];
+    const search = await this.api<{ results: { songs?: { data: AmResource[] } } }>(
+      `/v1/catalog/${encodeURIComponent(this.storefront)}/search?term=${encodeURIComponent(t)}&types=songs&limit=${limit}`
+    );
+    return (search.results?.songs?.data ?? [])
+      .filter((s) => s.attributes?.name)
+      .map((s) => {
+        const a = s.attributes!;
+        return {
+          providerTrackId: s.id,
+          providerUri: null,
+          isrc: normalizeIsrc(a.isrc),
+          title: a.name ?? "",
+          artist: a.artistName ?? "",
+          albumTitle: a.albumName ?? null,
+          durationMs: a.durationInMillis ?? null,
+          explicit: a.contentRating === "explicit",
+          isLocal: false,
+          inCatalog: true,
+        };
+      });
+  }
 }

@@ -16,6 +16,7 @@ import type { MusicProviderAdapter, Provider, ProviderTrack } from "../providers
 import { ingestProviderTrack, upsertTrackMapping } from "./tracks";
 import { dedupeKey } from "../normalize";
 import { getAdaptersForUser } from "../providers";
+import { propagateFollow } from "../sharing";
 
 const STALE_RUNNING_MS = 15 * 60 * 1000;
 
@@ -136,7 +137,7 @@ export async function syncCanonicalPlaylist(
       }
     }
 
-    const canonicalRows = await db
+    let canonicalRows = await db
       .select({
         canonicalTrackId: canonicalPlaylistTracks.canonicalTrackId,
         firstSeenProvider: canonicalPlaylistTracks.firstSeenProvider,
@@ -146,6 +147,24 @@ export async function syncCanonicalPlaylist(
       .innerJoin(canonicalTracks, eq(canonicalTracks.id, canonicalPlaylistTracks.canonicalTrackId))
       .where(eq(canonicalPlaylistTracks.canonicalPlaylistId, canonicalPlaylistId))
       .orderBy(canonicalPlaylistTracks.position);
+
+    // Cross-user follows: pull the followed source's tracks into this canonical
+    // (in-app propagation — mappings carry over, so followers don't re-search).
+    const followAdded = await propagateFollow(db, canonicalPlaylistId, userId);
+    if (followAdded > 0) {
+      outcome.ingestedCount += followAdded;
+      // membership grew — refetch rows so pass 2 sees the new tracks
+      canonicalRows = await db
+        .select({
+          canonicalTrackId: canonicalPlaylistTracks.canonicalTrackId,
+          firstSeenProvider: canonicalPlaylistTracks.firstSeenProvider,
+          dedupeKey: canonicalTracks.dedupeKey,
+        })
+        .from(canonicalPlaylistTracks)
+        .innerJoin(canonicalTracks, eq(canonicalTracks.id, canonicalPlaylistTracks.canonicalTrackId))
+        .where(eq(canonicalPlaylistTracks.canonicalPlaylistId, canonicalPlaylistId))
+        .orderBy(canonicalPlaylistTracks.position);
+    }
 
     // Pass 2: append missing canonical tracks to each linked provider playlist.
     for (const link of links) {

@@ -8,6 +8,13 @@
       "when": 1786857160480,
       "tag": "0000_swift_valeria_richards",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786874223927,
+      "tag": "0001_woozy_christian_walker",
+      "breakpoints": true
     }
   ]
 }
