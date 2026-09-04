@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { deleteAccountAction } from "@/app/actions";
+import { SettingsTabs } from "@/components/SettingsTabs";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Card } from "@astryxdesign/core/Card";
 import { Heading } from "@astryxdesign/core/Heading";
-import { Tab, TabList } from "@astryxdesign/core/TabList";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 
@@ -17,10 +16,7 @@ export default async function AccountPage() {
   return (
     <VStack gap={5}>
       <Heading level={1}>Settings</Heading>
-      <TabList value="account" onChange={() => {}} hasDivider>
-        <Tab value="connections" label="Connections" href="/settings/connections" as={Link} />
-        <Tab value="account" label="Account" href="/settings/account" as={Link} />
-      </TabList>
+      <SettingsTabs value="account" />
 
       <Card>
         <VStack gap={1}>

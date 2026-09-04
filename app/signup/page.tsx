@@ -2,10 +2,10 @@
 
 import { useActionState, useState } from "react";
 import { signupAction, type ActionState } from "../actions";
+import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Card } from "@astryxdesign/core/Card";
 import { Heading } from "@astryxdesign/core/Heading";
-import { Center } from "@astryxdesign/core/Center";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -16,8 +16,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   return (
-    <Center maxWidth={400} width="100%">
-      <VStack gap={5} width="100%">
+    <VStack gap={5} className="mx-auto w-full max-w-sm">
         <Heading level={1}>Create an account</Heading>
         <Card>
           <form action={formAction}>
@@ -32,7 +31,7 @@ export default function SignupPage() {
                 placeholder="8+ characters"
                 isRequired
               />
-              {state.error && <Text>{state.error}</Text>}
+              {state.error && <Banner status="error" title="Could not create the account" description={state.error} />}
               <Button label={pending ? "Creating account" : "Sign up"} variant="primary" type="submit" isLoading={pending} width="100%" />
               <Text color="secondary">
                 Have an account? <AstryxLink href="/login">Log in</AstryxLink>
@@ -40,7 +39,6 @@ export default function SignupPage() {
             </VStack>
           </form>
         </Card>
-      </VStack>
-    </Center>
+    </VStack>
   );
 }

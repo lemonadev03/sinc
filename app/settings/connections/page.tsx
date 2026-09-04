@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -8,13 +7,13 @@ import { appleConfigured, spotifyConfigured } from "@/lib/config";
 import { Ago, ProviderToken } from "@/components/ui";
 import { disconnectProviderAction } from "@/app/actions";
 import { AppleConnectButton } from "@/components/AppleConnectButton";
+import { SettingsTabs } from "@/components/SettingsTabs";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { List } from "@astryxdesign/core/List";
 import { ListItem } from "@astryxdesign/core/List";
-import { Tab, TabList } from "@astryxdesign/core/TabList";
 import { VStack } from "@astryxdesign/core/VStack";
 
 export default async function ConnectionsPage({
@@ -33,10 +32,7 @@ export default async function ConnectionsPage({
   return (
     <VStack gap={5}>
       <Heading level={1}>Settings</Heading>
-      <TabList value="connections" onChange={() => {}} hasDivider>
-        <Tab value="connections" label="Connections" href="/settings/connections" as={Link} />
-        <Tab value="account" label="Account" href="/settings/account" as={Link} />
-      </TabList>
+      <SettingsTabs value="connections" />
 
       {error && (
         <Banner

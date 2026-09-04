@@ -1,8 +1,7 @@
-import Link from "next/link";
+import { RouterLink } from "@/components/RouterLink";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { Button } from "@astryxdesign/core/Button";
-import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { List } from "@astryxdesign/core/List";
 import { ListItem } from "@astryxdesign/core/List";
@@ -34,16 +33,18 @@ export default async function Home() {
   return (
     <VStack gap={8}>
       <VStack gap={4}>
-        <Heading level={1} type="display-2">
-          The same playlists, on both services.
-        </Heading>
+        <h1>
+          <Text type="display-2" textWrap="balance">
+            The same playlists, on both services.
+          </Text>
+        </h1>
         <Text type="large" color="secondary">
           playlist-sync copies new additions between Spotify and Apple Music. Additive only — nothing
           is ever deleted.
         </Text>
         <HStack gap={2}>
-          <Button label="Get started" variant="primary" href="/signup" as={Link} />
-          <Button label="Log in" variant="secondary" href="/login" as={Link} />
+          <Button label="Get started" variant="primary" href="/signup" as={RouterLink} />
+          <Button label="Log in" variant="secondary" href="/login" as={RouterLink} />
         </HStack>
       </VStack>
 

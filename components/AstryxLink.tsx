@@ -1,5 +1,5 @@
-import NextLink from "next/link";
 import { Link } from "@astryxdesign/core/Link";
+import { RouterLink } from "./RouterLink";
 
 export function AstryxLink({
   href,
@@ -11,7 +11,7 @@ export function AstryxLink({
   color?: "primary" | "secondary" | "accent" | "inherit";
 }) {
   return (
-    <Link href={href} as={NextLink} color={color} isStandalone>
+    <Link href={href} as={RouterLink} color={color} isStandalone>
       {children}
     </Link>
   );

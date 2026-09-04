@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -16,6 +15,7 @@ import { getSessionUser } from "@/lib/auth";
 import { ProviderToken, SyncStatus, Ago } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 import { SuggestBox } from "@/components/SuggestBox";
+import { SyncRunsTable } from "@/components/SyncRunsTable";
 import {
   syncNowAction,
   toggleSyncAction,
@@ -35,22 +35,8 @@ import { HStack } from "@astryxdesign/core/HStack";
 import { List } from "@astryxdesign/core/List";
 import { ListItem } from "@astryxdesign/core/List";
 import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { Table, proportional, pixel } from "@astryxdesign/core/Table";
 import { Text } from "@astryxdesign/core/Text";
-import { Timestamp } from "@astryxdesign/core/Timestamp";
 import { VStack } from "@astryxdesign/core/VStack";
-
-interface RunRow extends Record<string, unknown> {
-  id: string;
-  status: string;
-  startedAt: Date;
-  trigger: string;
-  ingested: number;
-  spotify: number;
-  apple: number;
-  unmatched: number;
-  error: string | null;
-}
 
 export default async function CanonicalPlaylistPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
@@ -114,18 +100,6 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
     .where(eq(syncRuns.canonicalPlaylistId, id))
     .orderBy(desc(syncRuns.startedAt))
     .limit(10);
-
-  const runRows: RunRow[] = runs.map((r) => ({
-    id: r.id,
-    status: r.status,
-    startedAt: r.startedAt,
-    trigger: r.trigger,
-    ingested: r.ingestedCount,
-    spotify: r.spotifyAddedCount,
-    apple: r.appleAddedCount,
-    unmatched: r.unmatchedCount,
-    error: r.errorSummary,
-  }));
 
   const unmatched = await db
     .select({
@@ -303,12 +277,6 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
                   label={label}
                   description={friendlyReason(u.reason)}
                   startContent={<ProviderToken provider={u.sourceProvider} />}
-                  endContent={
-                    <form action={syncNowAction}>
-                      <input type="hidden" name="canonicalPlaylistId" value={canonical.id} />
-                      <SubmitButton label="Retry" pendingLabel="Retrying" size="sm" />
-                    </form>
-                  }
                 />
               );
             })}
@@ -321,7 +289,7 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
           <VStack gap={1}>
             <Heading level={3}>Share</Heading>
             {share && !share.revokedAt ? (
-              <Text type="code" color="secondary">
+              <Text type="code" color="secondary" wordBreak="break-all">
                 {getAppUrl()}/shared/{share.slug}
               </Text>
             ) : (
@@ -388,54 +356,21 @@ export default async function CanonicalPlaylistPage({ params }: { params: Promis
 
       <VStack gap={3}>
         <Heading level={2}>Activity</Heading>
-        {runRows.length === 0 ? (
+        {runs.length === 0 ? (
           <Text color="secondary">No runs yet.</Text>
         ) : (
-          <Table
-            data={runRows}
-            idKey="id"
-            density="compact"
-            columns={[
-              {
-                key: "status",
-                header: "Status",
-                width: pixel(110),
-                renderCell: (r) => (
-                  <HStack gap={1} vAlign="center">
-                    <StatusDot
-                      variant={r.status === "success" ? "success" : r.status === "running" ? "warning" : r.status === "partial" ? "warning" : "error"}
-                      label={String(r.status)}
-                    />
-                    <Text type="supporting">{String(r.status)}</Text>
-                  </HStack>
-                ),
-              },
-              {
-                key: "startedAt",
-                header: "When",
-                width: pixel(130),
-                renderCell: (r) => <Timestamp value={(r.startedAt as Date).toISOString()} format="relative" />,
-              },
-              { key: "trigger", header: "Trigger", width: pixel(90) },
-              {
-                key: "added",
-                header: "Added",
-                width: proportional(1),
-                renderCell: (r) => (
-                  <Text type="supporting">
-                    +{Number(r.ingested)} in · +{Number(r.spotify)} Spotify · +{Number(r.apple)} Apple ·{" "}
-                    {Number(r.unmatched)} unmatched
-                  </Text>
-                ),
-              },
-              {
-                key: "error",
-                header: "Error",
-                width: proportional(1),
-                renderCell: (r) =>
-                  r.error ? <Text type="supporting">{String(r.error)}</Text> : <Text type="supporting">—</Text>,
-              },
-            ]}
+          <SyncRunsTable
+            runs={runs.map((r) => ({
+              id: r.id,
+              status: r.status,
+              startedAt: r.startedAt.toISOString(),
+              trigger: r.trigger,
+              ingested: r.ingestedCount,
+              spotify: r.spotifyAddedCount,
+              apple: r.appleAddedCount,
+              unmatched: r.unmatchedCount,
+              error: r.errorSummary,
+            }))}
           />
         )}
       </VStack>

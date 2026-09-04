@@ -91,13 +91,14 @@ export function OnboardingPanel({ playlists, bothConnected }: { playlists: Playl
         </VStack>
       )}
 
-      <HStack hAlign="between" vAlign="center">
+      {error && <Banner status="error" title="Could not create the sync" description={error} />}
+
+      <HStack hAlign="between" vAlign="center" wrap="wrap">
         <Text color="secondary">
           {selectedList.length === 0 && "Select up to two playlists"}
           {selectedList.length === 1 && `Mirror ${selectedList[0].name}`}
           {selectedSpotify.length === 1 && selectedApple.length === 1 && `Link ${selectedSpotify[0].name} and ${selectedApple[0].name}`}
           {tooMany && "Select at most two — one per service"}
-          {error ?? ""}
         </Text>
         <HStack gap={2}>
           <Button label="Refresh" variant="ghost" onClick={() => void refreshPlaylistsAction()} />

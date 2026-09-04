@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { RouterLink } from "@/components/RouterLink";
 import { redirect } from "next/navigation";
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
     <VStack gap={6}>
       <HStack hAlign="between" vAlign="center">
         <Heading level={1}>Dashboard</Heading>
-        <Button label="New sync" variant="primary" href="/onboarding" as={Link} />
+        <Button label="New sync" variant="primary" href="/onboarding" as={RouterLink} />
       </HStack>
 
       {stale.length > 0 && (
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           status="warning"
           title="A connection needs attention"
           description={`${stale.map((c) => (c.provider === "spotify" ? "Spotify" : "Apple Music")).join(" and ")} expired. Sync is paused until you reconnect.`}
-          endContent={<Button label="Reconnect" variant="secondary" size="sm" href="/settings/connections" as={Link} />}
+          endContent={<Button label="Reconnect" variant="secondary" size="sm" href="/settings/connections" as={RouterLink} />}
         />
       )}
 
@@ -130,7 +130,7 @@ export default async function DashboardPage() {
                     variant={conn?.needsReconnect ? "primary" : "secondary"}
                     size="sm"
                     href="/settings/connections"
-                    as={Link}
+                    as={RouterLink}
                   />
                 }
               />
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
           <EmptyState
             title="No synced playlists"
             body="Mirror a playlist, or link a Spotify and Apple Music pair."
-            action={<Button label="Set up a sync" variant="primary" href="/onboarding" as={Link} />}
+            action={<Button label="Set up a sync" variant="primary" href="/onboarding" as={RouterLink} />}
           />
         ) : (
           <VStack gap={3}>
@@ -199,7 +199,7 @@ export default async function DashboardPage() {
                           variant="ghost"
                         />
                       </form>
-                      <Button label="Details" variant="ghost" href={`/playlists/${c.id}`} as={Link} />
+                      <Button label="Details" variant="ghost" href={`/playlists/${c.id}`} as={RouterLink} />
                     </HStack>
                   </VStack>
                 </Card>

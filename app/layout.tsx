@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { RouterLink } from "@/components/RouterLink";
 import "./globals.css";
 import { getSessionUser } from "@/lib/auth";
 import { AstryxTheme } from "@/components/AstryxTheme";
 import { AppNav } from "@/components/AppNav";
 import { AppShell } from "@astryxdesign/core/AppShell";
-import { Layout, LayoutContent, LayoutFooter } from "@astryxdesign/core/Layout";
+import { Layout, LayoutContent, LayoutFooter, Section } from "@astryxdesign/core/Layout";
 import { TopNav } from "@astryxdesign/core/TopNav";
 import { TopNavHeading, TopNavItem } from "@astryxdesign/core/TopNav";
 import { Button } from "@astryxdesign/core/Button";
@@ -42,27 +42,35 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getSessionUser().catch(() => null);
   return (
     <html lang="en">
-      <body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fustat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Manufacturing+Consent&display=swap"
+        />
+      </head>
+      <body className="antialiased">
         <AstryxTheme>
           <AppShell
             height="auto"
             contentPadding={0}
             topNav={
               <TopNav
-                heading={<TopNavHeading logo={<Mark />} heading="playlist-sync" headingHref="/" as={Link} />}
+                heading={<TopNavHeading logo={<Mark />} heading="playlist-sync" headingHref="/" as={RouterLink} />}
                 centerContent={user ? <AppNav /> : undefined}
                 endContent={
                   user ? (
                     <>
-                      <Button label="New sync" variant="primary" size="sm" href="/onboarding" as={Link} />
-                      <form action={logoutAction}>
+                      <Button label="New sync" variant="primary" size="sm" href="/onboarding" as={RouterLink} />
+                      <form action={logoutAction} className="contents">
                         <Button label="Log out" variant="ghost" size="sm" type="submit" />
                       </form>
                     </>
                   ) : (
                     <>
-                      <TopNavItem label="Log in" href="/login" as={Link} />
-                      <Button label="Get started" variant="primary" size="sm" href="/signup" as={Link} />
+                      <TopNavItem label="Log in" href="/login" as={RouterLink} />
+                      <Button label="Get started" variant="primary" size="sm" href="/signup" as={RouterLink} />
                     </>
                   )
                 }
@@ -74,17 +82,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               contentWidth={960}
               content={
                 <LayoutContent>
-                  {children}
+                  <Section variant="transparent" paddingInline={4} paddingBlockStart={8} paddingBlockEnd={10}>
+                    {children}
+                  </Section>
                 </LayoutContent>
               }
               footer={
                 <LayoutFooter hasDivider>
-                  <HStack hAlign="between" vAlign="center">
-                    <Text type="supporting" color="secondary">
-                      Additive sync only · Every 10 minutes
-                    </Text>
-                    <AstryxLink href="/privacy">Privacy</AstryxLink>
-                  </HStack>
+                  <Section variant="transparent" paddingInline={4} paddingBlock={2}>
+                    <HStack hAlign="between" vAlign="center">
+                      <Text type="supporting" color="secondary">
+                        Additive sync only · Every 10 minutes
+                      </Text>
+                      <AstryxLink href="/privacy">Privacy</AstryxLink>
+                    </HStack>
+                  </Section>
                 </LayoutFooter>
               }
             />

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { RouterLink } from "@/components/RouterLink";
 import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -51,7 +51,7 @@ export default async function PlaylistsPage() {
         <EmptyState
           title="Nothing here yet"
           body="Connect a service in Settings first."
-          action={<Button label="Settings" variant="primary" href="/settings/connections" as={Link} />}
+          action={<Button label="Settings" variant="primary" href="/settings/connections" as={RouterLink} />}
         />
       )}
 
@@ -82,9 +82,9 @@ export default async function PlaylistsPage() {
                     }
                     endContent={
                       canonicalId ? (
-                        <Button label="View sync" variant="secondary" size="sm" href={`/playlists/${canonicalId}`} as={Link} />
+                        <Button label="View sync" variant="secondary" size="sm" href={`/playlists/${canonicalId}`} as={RouterLink} />
                       ) : (
-                        <Button label="Sync" variant="ghost" size="sm" href="/onboarding" as={Link} />
+                        <Button label="Sync" variant="ghost" size="sm" href="/onboarding" as={RouterLink} />
                       )
                     }
                   />
