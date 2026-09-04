@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -6,7 +5,16 @@ import { canonicalPlaylistTracks, canonicalTracks } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { getShareBySlug } from "@/lib/sharing";
 import { importSharedAction } from "@/app/actions";
-import { ProviderBadge } from "@/components/ui";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { List } from "@astryxdesign/core/List";
+import { ListItem } from "@astryxdesign/core/List";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
+import { AstryxLink } from "@/components/AstryxLink";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function SharedPlaylistPage({
   params,
@@ -36,68 +44,53 @@ export default async function SharedPlaylistPage({
     .orderBy(canonicalPlaylistTracks.position);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div className="card flex flex-col gap-2 border-violet-900/50 bg-gradient-to-br from-violet-950/30 to-zinc-900/60">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">{share.name}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            shared by <span className="text-zinc-300">{share.ownerEmail}</span> · {tracks.length} tracks
-          </p>
-          <p className="mt-1 text-xs text-zinc-600">this playlist is created and managed by sinc</p>
-        </div>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        {viewer && !isOwner ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <form action={importSharedAction}>
-              <input type="hidden" name="slug" value={slug} />
-              <input type="hidden" name="follow" value="true" />
-              <button type="submit" className="btn-primary">
-                ★ Follow
-              </button>
-            </form>
-            <form action={importSharedAction}>
-              <input type="hidden" name="slug" value={slug} />
-              <input type="hidden" name="follow" value="false" />
-              <button type="submit" className="btn-secondary">
-                ⤓ Import once
-              </button>
-            </form>
-          </div>
-        ) : isOwner ? (
-          <p className="mt-2 text-sm text-violet-300">this is your share link ✓</p>
-        ) : (
-          <p className="mt-2 text-sm text-zinc-400">
-            <Link href="/signup" className="text-violet-400 underline">
-              create an account
-            </Link>{" "}
-            to follow or import this playlist
-          </p>
-        )}
-      </div>
+    <VStack gap={5}>
+      <Card>
+        <VStack gap={3}>
+          <VStack gap={1}>
+            <Heading level={1}>{share.name}</Heading>
+            <Text color="secondary">
+              By {share.ownerEmail} · {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
+            </Text>
+          </VStack>
+          {error && <Text>{error}</Text>}
+          {viewer && !isOwner ? (
+            <HStack gap={2}>
+              <form action={importSharedAction}>
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="follow" value="true" />
+                <SubmitButton label="Follow" pendingLabel="Following" variant="primary" />
+              </form>
+              <form action={importSharedAction}>
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="follow" value="false" />
+                <SubmitButton label="Import once" pendingLabel="Importing" />
+              </form>
+            </HStack>
+          ) : isOwner ? (
+            <Text color="secondary">This is your share link.</Text>
+          ) : (
+            <Text color="secondary">
+              <AstryxLink href="/signup">Create an account</AstryxLink> to follow or import.
+            </Text>
+          )}
+        </VStack>
+      </Card>
 
-      <div className="card divide-y divide-zinc-800/70 p-0">
-        {tracks.length === 0 && <p className="px-4 py-6 text-sm text-zinc-500">No tracks yet.</p>}
+      <List hasDividers>
         {tracks.map((t) => (
-          <div key={t.position} className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <div className="min-w-0">
-              <p className="truncate text-sm text-zinc-200">
-                <span className="mr-2 text-xs text-zinc-600">{t.position}</span>
-                {t.title}
-              </p>
-              <p className="truncate text-xs text-zinc-500">{t.artist}</p>
-            </div>
-            <span className="shrink-0 text-[11px] text-zinc-600">{t.isrc ?? ""}</span>
-          </div>
+          <ListItem
+            key={t.position}
+            label={t.title}
+            description={t.artist}
+            startContent={
+              <Text type="supporting" color="secondary">
+                {t.position}
+              </Text>
+            }
+          />
         ))}
-      </div>
-
-      <p className="text-xs text-zinc-600">
-        Following keeps your copy updated when the owner adds songs (additive-only). Import makes a
-        one-time copy. Either way, tracks land in your own Spotify/Apple mirrors when you create them.
-      </p>
-      <p className="text-xs text-zinc-600">
-        <ProviderBadge provider="spotify" /> + <ProviderBadge provider="apple" /> synced by sinc
-      </p>
-    </div>
+      </List>
+    </VStack>
   );
 }

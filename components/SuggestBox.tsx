@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { suggestTrackAction } from "@/app/actions";
+import { Button } from "@astryxdesign/core/Button";
+import { HStack } from "@astryxdesign/core/HStack";
+import { List } from "@astryxdesign/core/List";
+import { ListItem } from "@astryxdesign/core/List";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { VStack } from "@astryxdesign/core/VStack";
 
 type SearchResult = {
   provider: string;
@@ -41,49 +48,42 @@ export function SuggestBox({ canonicalPlaylistId }: { canonicalPlaylistId: strin
     fd.set("provider", r.provider);
     fd.set("providerTrackId", r.providerTrackId);
     await suggestTrackAction(fd);
-    setSent(`${r.title} — suggested to the owner ✓`);
+    setSent(`Sent “${r.title}” to the owner.`);
     setResults([]);
     setTerm("");
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        <input
-          className="input"
-          placeholder="search a song to suggest…"
+    <VStack gap={2}>
+      <HStack gap={2} vAlign="end">
+        <TextInput
+          label="Song or artist"
           value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void search();
-            }
-          }}
+          onChange={setTerm}
+          placeholder="Search"
+          onEnter={() => void search()}
+          className="flex-1"
         />
-        <button type="button" className="btn-secondary shrink-0" onClick={() => void search()} disabled={loading}>
-          {loading ? "…" : "Search"}
-        </button>
-      </div>
-      {sent && <p className="text-sm text-emerald-400">{sent}</p>}
+        <Button label={loading ? "Searching" : "Search"} variant="secondary" isLoading={loading} onClick={() => void search()} />
+      </HStack>
+      {sent && <Text>{sent}</Text>}
       {results.length > 0 && (
-        <div className="card divide-y divide-zinc-800/70 p-0">
+        <List hasDividers>
           {results.map((r) => (
-            <button
+            <ListItem
               key={`${r.provider}:${r.providerTrackId}`}
-              type="button"
-              className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-zinc-800/40"
+              label={r.title}
+              description={r.artist}
               onClick={() => void suggest(r)}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm text-zinc-200">{r.title}</p>
-                <p className="truncate text-xs text-zinc-500">{r.artist}</p>
-              </div>
-              <span className="shrink-0 text-[11px] uppercase text-zinc-500">{r.provider} · suggest ↗</span>
-            </button>
+              endContent={
+                <Text type="supporting" color="secondary">
+                  Suggest
+                </Text>
+              }
+            />
           ))}
-        </div>
+        </List>
       )}
-    </div>
+    </VStack>
   );
 }

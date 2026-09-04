@@ -5,9 +5,17 @@ import { getDb } from "@/db";
 import { musicConnections } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { appleConfigured, spotifyConfigured } from "@/lib/config";
-import { timeAgo } from "@/components/ui";
+import { Ago, ProviderToken } from "@/components/ui";
 import { disconnectProviderAction } from "@/app/actions";
 import { AppleConnectButton } from "@/components/AppleConnectButton";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
+import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { List } from "@astryxdesign/core/List";
+import { ListItem } from "@astryxdesign/core/List";
+import { Tab, TabList } from "@astryxdesign/core/TabList";
+import { VStack } from "@astryxdesign/core/VStack";
 
 export default async function ConnectionsPage({
   searchParams,
@@ -23,103 +31,87 @@ export default async function ConnectionsPage({
   const apple = connections.find((c) => c.provider === "apple");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Connections</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          One Spotify and one Apple Music connection per account. Tokens are encrypted at rest.
-        </p>
-      </div>
+    <VStack gap={5}>
+      <Heading level={1}>Settings</Heading>
+      <TabList value="connections" onChange={() => {}} hasDivider>
+        <Tab value="connections" label="Connections" href="/settings/connections" as={Link} />
+        <Tab value="account" label="Account" href="/settings/account" as={Link} />
+      </TabList>
 
       {error && (
-        <div className="card border-red-900/50 bg-red-950/20 text-sm text-red-300">
-          {error === "oauth_state" && "OAuth state validation failed — please try connecting again."}
-          {error === "spotify_failed" && "Spotify connection failed — please try again."}
-          {error === "not_configured" && "This provider isn't configured on the server (missing credentials)."}
-        </div>
+        <Banner
+          status="error"
+          title="Connection failed"
+          description={
+            error === "oauth_state"
+              ? "The Spotify sign-in expired. Try again."
+              : error === "not_configured"
+                ? "This service is not configured on this server yet."
+                : "Something went wrong. Try again."
+          }
+        />
       )}
 
-      <div className="card flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="font-semibold text-zinc-100">Spotify</p>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {spotify
-              ? `Connected · ${spotify.externalAccountName ?? spotify.externalAccountId ?? ""} · since ${timeAgo(spotify.connectedAt)}`
-              : "Not connected"}
-          </p>
-          <p className="text-xs text-zinc-600">
-            {spotify
-              ? spotify.needsReconnect
-                ? "authorization expired — reconnect required"
-                : `last validated ${timeAgo(spotify.lastValidatedAt)}`
-              : spotifyConfigured()
-                ? "read + modify private playlists"
-                : "server missing SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {spotify ? (
+      <List hasDividers>
+        <ListItem
+          label="Spotify"
+          description={
             <>
-              <a href="/api/auth/spotify/start" className={spotify.needsReconnect ? "btn-primary" : "btn-secondary"}>
-                {spotify.needsReconnect ? "Reconnect Spotify" : "Refresh connection"}
-              </a>
-              <form action={disconnectProviderAction}>
-                <input type="hidden" name="provider" value="spotify" />
-                <button type="submit" className="btn-ghost">
-                  Disconnect
-                </button>
-              </form>
+              {spotify ? `Connected · ${spotify.externalAccountName ?? spotify.externalAccountId ?? ""}` : "Not connected"}
+              {spotify && !spotify.needsReconnect ? (
+                <>
+                  {" · Validated "}
+                  <Ago date={spotify.lastValidatedAt} />
+                </>
+              ) : null}
+              {spotify?.needsReconnect ? " · Authorization expired" : ""}
             </>
-          ) : (
-            <a
-              href="/api/auth/spotify/start"
-              className={spotifyConfigured() ? "btn-primary" : "btn-primary pointer-events-none opacity-50"}
-            >
-              Connect Spotify
-            </a>
-          )}
-        </div>
-      </div>
-
-      <div className="card flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="font-semibold text-zinc-100">Apple Music</p>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {apple
-              ? `Connected${apple.storefront ? ` · storefront ${apple.storefront}` : ""} · since ${timeAgo(apple.connectedAt)}`
-              : "Not connected"}
-          </p>
-          <p className="text-xs text-zinc-600">
-            {apple
-              ? apple.needsReconnect
-                ? "authorization invalid — reconnect required"
-                : `last validated ${timeAgo(apple.lastValidatedAt)}`
-              : appleConfigured()
-                ? "MusicKit on the Web · personalized library access"
-                : "server missing APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <AppleConnectButton disabled={!appleConfigured()} />
-          {apple && (
-            <form action={disconnectProviderAction}>
-              <input type="hidden" name="provider" value="apple" />
-              <button type="submit" className="btn-ghost">
-                Disconnect
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-
-      <p className="text-xs text-zinc-600">
-        Disconnecting a provider removes its stored credentials and pauses sync groups that depended on
-        it. Account deletion (in{" "}
-        <Link href="/settings/account" className="underline">
-          account settings
-        </Link>
-        ) removes everything.
-      </p>
-    </div>
+          }
+          startContent={<ProviderToken provider="spotify" />}
+          endContent={
+            <HStack gap={2} wrap="wrap">
+              {spotify ? (
+                <>
+                  <Button label="Reconnect" variant={spotify.needsReconnect ? "primary" : "secondary"} href="/api/auth/spotify/start" />
+                  <form action={disconnectProviderAction}>
+                    <input type="hidden" name="provider" value="spotify" />
+                    <Button label="Disconnect" variant="ghost" type="submit" />
+                  </form>
+                </>
+              ) : (
+                <Button label="Connect" variant="primary" href="/api/auth/spotify/start" isDisabled={!spotifyConfigured()} />
+              )}
+            </HStack>
+          }
+        />
+        <ListItem
+          label="Apple Music"
+          description={
+            <>
+              {apple ? `Connected${apple.storefront ? ` · ${apple.storefront}` : ""}` : "Not connected"}
+              {apple && !apple.needsReconnect ? (
+                <>
+                  {" · Validated "}
+                  <Ago date={apple.lastValidatedAt} />
+                </>
+              ) : null}
+              {apple?.needsReconnect ? " · Authorization invalid" : ""}
+            </>
+          }
+          startContent={<ProviderToken provider="apple" />}
+          endContent={
+            <HStack gap={2} wrap="wrap">
+              <AppleConnectButton disabled={!appleConfigured()} />
+              {apple && (
+                <form action={disconnectProviderAction}>
+                  <input type="hidden" name="provider" value="apple" />
+                  <Button label="Disconnect" variant="ghost" type="submit" />
+                </form>
+              )}
+            </HStack>
+          }
+        />
+      </List>
+    </VStack>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   canonicalPlaylistTracks,
@@ -8,11 +8,22 @@ import {
   musicConnections,
   playlistLinks,
   providerPlaylists,
+  syncRuns,
   unmatchedTracks,
 } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { ProviderBadge, StatusPill, timeAgo, EmptyState } from "@/components/ui";
+import { ProviderToken, SyncStatus, Ago, CountBadge, EmptyState } from "@/components/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { List } from "@astryxdesign/core/List";
+import { ListItem } from "@astryxdesign/core/List";
+import { VStack } from "@astryxdesign/core/VStack";
+import { Text } from "@astryxdesign/core/Text";
+import { AstryxLink } from "@/components/AstryxLink";
 import { syncNowAction, toggleSyncAction } from "../actions";
 
 export default async function DashboardPage() {
@@ -43,135 +54,160 @@ export default async function DashboardPage() {
         .select({ id: unmatchedTracks.id })
         .from(unmatchedTracks)
         .where(and(eq(unmatchedTracks.canonicalPlaylistId, c.id), eq(unmatchedTracks.status, "open")));
-      return { c, links, trackCount: tracks.length, unmatchedCount: unmatched.length };
+      const lastRun = (
+        await db
+          .select()
+          .from(syncRuns)
+          .where(eq(syncRuns.canonicalPlaylistId, c.id))
+          .orderBy(desc(syncRuns.startedAt))
+          .limit(1)
+      )[0];
+      return { c, links, trackCount: tracks.length, unmatchedCount: unmatched.length, lastRun };
     })
   );
 
+  const stale = connections.filter((c) => c.needsReconnect);
+  const failed = cards.filter(({ c }) => c.lastSyncStatus === "error");
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1>
-          <p className="mt-1 text-sm text-zinc-500">Additive sync runs every 10 minutes for enabled playlists.</p>
-        </div>
-        <Link href="/onboarding" className="btn-primary">
-          + New sync
-        </Link>
-      </div>
+    <VStack gap={6}>
+      <HStack hAlign="between" vAlign="center">
+        <Heading level={1}>Dashboard</Heading>
+        <Button label="New sync" variant="primary" href="/onboarding" as={Link} />
+      </HStack>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(["spotify", "apple"] as const).map((provider) => {
-          const conn = connections.find((c) => c.provider === provider);
-          const label = provider === "spotify" ? "Spotify" : "Apple Music";
-          return (
-            <div key={provider} className="card flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ProviderBadge provider={provider} />
-                <div>
-                  <p className="text-sm font-medium text-zinc-200">
-                    {conn ? `Connected${conn.externalAccountName ? ` · ${conn.externalAccountName}` : ""}` : "Not connected"}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {conn
-                      ? conn.needsReconnect
-                        ? "needs reconnection"
-                        : `validated ${timeAgo(conn.lastValidatedAt)}`
-                      : `connect ${label} to enable syncing`}
-                  </p>
-                </div>
-              </div>
-              <Link href="/settings/connections" className={conn?.needsReconnect ? "btn-primary" : "btn-secondary"}>
-                {conn ? (conn.needsReconnect ? "Reconnect" : "Manage") : "Connect"}
-              </Link>
-            </div>
-          );
-        })}
-      </div>
-
-      <h2 className="text-lg font-semibold text-zinc-100">Canonical playlists</h2>
-      {cards.length === 0 ? (
-        <EmptyState
-          title="No sync groups yet"
-          body="Create one from the onboarding panel — pick a playlist to mirror, or link an existing pair."
-          action={
-            <Link href="/onboarding" className="btn-primary">
-              Set up a sync
-            </Link>
-          }
+      {stale.length > 0 && (
+        <Banner
+          status="warning"
+          title="A connection needs attention"
+          description={`${stale.map((c) => (c.provider === "spotify" ? "Spotify" : "Apple Music")).join(" and ")} expired. Sync is paused until you reconnect.`}
+          endContent={<Button label="Reconnect" variant="secondary" size="sm" href="/settings/connections" as={Link} />}
         />
-      ) : (
-        <div className="flex flex-col gap-4">
-          {cards.map(({ c, links, trackCount, unmatchedCount }) => {
-            const spotifyLink = links.find((l) => l.provider === "spotify");
-            const appleLink = links.find((l) => l.provider === "apple");
-            const spotifyConn = connections.find((x) => x.provider === "spotify");
-            const appleConn = connections.find((x) => x.provider === "apple");
+      )}
+
+      {failed.length > 0 && (
+        <Banner status="error" title={`${failed.length} sync${failed.length === 1 ? "" : "s"} failed`} collapsible={false}>
+          <VStack gap={2}>
+            {failed.map(({ c, lastRun }) => (
+              <HStack key={c.id} hAlign="between" vAlign="center">
+                <AstryxLink href={`/playlists/${c.id}`}>{c.name}</AstryxLink>
+                <Text type="supporting" color="secondary">
+                  {lastRun?.errorSummary ?? "Unknown error"}
+                  {lastRun?.startedAt ? (
+                    <>
+                      {" · "}
+                      <Ago date={lastRun.startedAt} />
+                    </>
+                  ) : null}
+                </Text>
+              </HStack>
+            ))}
+          </VStack>
+        </Banner>
+      )}
+
+      <VStack gap={3}>
+        <Heading level={2}>Connections</Heading>
+        <List hasDividers>
+          {(["spotify", "apple"] as const).map((provider) => {
+            const conn = connections.find((c) => c.provider === provider);
+            const label = provider === "spotify" ? "Spotify" : "Apple Music";
             return (
-              <div key={c.id} className="card flex flex-col gap-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <Link href={`/playlists/${c.id}`} className="text-lg font-semibold text-zinc-100 hover:text-violet-300">
-                      {c.name}
-                    </Link>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {trackCount} tracks · {unmatchedCount > 0 ? `${unmatchedCount} unmatched · ` : ""}
-                      {c.syncEnabled ? "sync on" : "sync paused"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusPill status={c.lastSyncStatus} />
-                    <span className="text-xs text-zinc-500">synced {timeAgo(c.lastSyncCompletedAt)}</span>
-                  </div>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <LinkRow
-                    badge="spotify"
-                    name={spotifyLink?.name ?? (spotifyConn ? "not linked" : "Spotify not connected")}
-                    broken={spotifyLink ? !spotifyLink.editable || spotifyLink.archivedAt !== null : spotifyConn ? false : true}
+              <ListItem
+                key={provider}
+                label={conn ? (conn.externalAccountName ?? label) : label}
+                description={
+                  conn
+                    ? conn.needsReconnect
+                      ? "Authorization expired"
+                      : label
+                    : `Connect ${label} to enable syncing`
+                }
+                startContent={<ProviderToken provider={provider} />}
+                endContent={
+                  <Button
+                    label={conn ? (conn.needsReconnect ? "Reconnect" : "Manage") : "Connect"}
+                    variant={conn?.needsReconnect ? "primary" : "secondary"}
+                    size="sm"
+                    href="/settings/connections"
+                    as={Link}
                   />
-                  <LinkRow
-                    badge="apple"
-                    name={appleLink?.name ?? (appleConn ? "not linked" : "Apple Music not connected")}
-                    broken={appleLink ? !appleLink.editable || appleLink.archivedAt !== null : appleConn ? false : true}
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <form action={syncNowAction}>
-                    <input type="hidden" name="canonicalPlaylistId" value={c.id} />
-                    <SubmitButton className="btn-secondary" pendingLabel="Syncing…">
-                      ⟳ Sync now
-                    </SubmitButton>
-                  </form>
-                  <form action={toggleSyncAction}>
-                    <input type="hidden" name="canonicalPlaylistId" value={c.id} />
-                    <input type="hidden" name="enabled" value={c.syncEnabled ? "false" : "true"} />
-                    <SubmitButton className="btn-ghost" pendingLabel="…">
-                      {c.syncEnabled ? "Pause sync" : "Resume sync"}
-                    </SubmitButton>
-                  </form>
-                  <Link href={`/playlists/${c.id}`} className="btn-ghost">
-                    Details →
-                  </Link>
-                </div>
-              </div>
+                }
+              />
             );
           })}
-        </div>
-      )}
-    </div>
-  );
-}
+        </List>
+      </VStack>
 
-function LinkRow({ badge, name, broken }: { badge: string; name: string; broken: boolean }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2">
-      <ProviderBadge provider={badge} />
-      <span className={`truncate text-sm ${broken ? "text-amber-400" : "text-zinc-300"}`}>
-        {name}
-        {broken ? " ⚠" : ""}
-      </span>
-    </div>
+      <VStack gap={3}>
+        <HStack gap={2} vAlign="center">
+          <Heading level={2}>Synced playlists</Heading>
+          <CountBadge count={cards.length} />
+        </HStack>
+        {cards.length === 0 ? (
+          <EmptyState
+            title="No synced playlists"
+            body="Mirror a playlist, or link a Spotify and Apple Music pair."
+            action={<Button label="Set up a sync" variant="primary" href="/onboarding" as={Link} />}
+          />
+        ) : (
+          <VStack gap={3}>
+            {cards.map(({ c, links, trackCount, unmatchedCount }) => {
+              const spotifyLink = links.find((l) => l.provider === "spotify");
+              const appleLink = links.find((l) => l.provider === "apple");
+              return (
+                <Card key={c.id}>
+                  <VStack gap={4}>
+                    <HStack hAlign="between" vAlign="start" wrap="wrap">
+                      <VStack gap={1}>
+                        <AstryxLink href={`/playlists/${c.id}`}>
+                          <Heading level={3}>{c.name}</Heading>
+                        </AstryxLink>
+                        <Text type="supporting" color="secondary">
+                          {trackCount} {trackCount === 1 ? "track" : "tracks"}
+                          {unmatchedCount > 0 ? ` · ${unmatchedCount} unmatched` : ""} ·{" "}
+                          {c.syncEnabled ? "On" : "Paused"} · <Ago date={c.lastSyncCompletedAt} />
+                        </Text>
+                      </VStack>
+                      <SyncStatus status={c.lastSyncStatus} />
+                    </HStack>
+
+                    <List hasDividers>
+                      <ListItem
+                        label={spotifyLink?.name ?? "Spotify not linked"}
+                        description={spotifyLink && !spotifyLink.editable ? "Read-only" : undefined}
+                        startContent={<ProviderToken provider="spotify" />}
+                      />
+                      <ListItem
+                        label={appleLink?.name ?? "Apple Music not linked"}
+                        description={appleLink && !appleLink.editable ? "Read-only" : undefined}
+                        startContent={<ProviderToken provider="apple" />}
+                      />
+                    </List>
+
+                    <HStack gap={2} wrap="wrap">
+                      <form action={syncNowAction}>
+                        <input type="hidden" name="canonicalPlaylistId" value={c.id} />
+                        <SubmitButton label="Sync now" pendingLabel="Syncing" />
+                      </form>
+                      <form action={toggleSyncAction}>
+                        <input type="hidden" name="canonicalPlaylistId" value={c.id} />
+                        <input type="hidden" name="enabled" value={c.syncEnabled ? "false" : "true"} />
+                        <SubmitButton
+                          label={c.syncEnabled ? "Pause" : "Resume"}
+                          pendingLabel="Saving"
+                          variant="ghost"
+                        />
+                      </form>
+                      <Button label="Details" variant="ghost" href={`/playlists/${c.id}`} as={Link} />
+                    </HStack>
+                  </VStack>
+                </Card>
+              );
+            })}
+          </VStack>
+        )}
+      </VStack>
+    </VStack>
   );
 }

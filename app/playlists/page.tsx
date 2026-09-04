@@ -4,8 +4,16 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { canonicalPlaylists, playlistLinks, providerPlaylists } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { ProviderBadge, timeAgo, EmptyState } from "@/components/ui";
+import { ProviderToken, Ago, EmptyState } from "@/components/ui";
+import { Button } from "@astryxdesign/core/Button";
+import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { List } from "@astryxdesign/core/List";
+import { ListItem } from "@astryxdesign/core/List";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import { refreshPlaylistsAction } from "../actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function PlaylistsPage() {
   const user = await getSessionUser();
@@ -31,30 +39,19 @@ export default async function PlaylistsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">All playlists</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Every indexed playlist per provider. Mirroring is opt-in — indexed ≠ synced.
-          </p>
-        </div>
+    <VStack gap={6}>
+      <HStack hAlign="between" vAlign="center">
+        <Heading level={1}>Playlists</Heading>
         <form action={refreshPlaylistsAction}>
-          <button type="submit" className="btn-secondary">
-            ↻ Refresh from providers
-          </button>
+          <SubmitButton label="Refresh" pendingLabel="Refreshing" />
         </form>
-      </div>
+      </HStack>
 
       {rows.length === 0 && (
         <EmptyState
-          title="Nothing indexed yet"
-          body="Connect a provider in settings — your playlists will be indexed automatically."
-          action={
-            <Link href="/settings/connections" className="btn-primary">
-              Go to settings
-            </Link>
-          }
+          title="Nothing here yet"
+          body="Connect a service in Settings first."
+          action={<Button label="Settings" variant="primary" href="/settings/connections" as={Link} />}
         />
       )}
 
@@ -62,41 +59,41 @@ export default async function PlaylistsPage() {
         const list = rows.filter((r) => r.provider === provider);
         if (list.length === 0) return null;
         return (
-          <section key={provider} className="flex flex-col gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
-              <ProviderBadge provider={provider} /> {title} · {list.length}
-            </h2>
-            <div className="card divide-y divide-zinc-800/70 p-0">
+          <VStack key={provider} gap={3}>
+            <HStack gap={2} vAlign="center">
+              <ProviderToken provider={provider} />
+              <Heading level={2}>{title}</Heading>
+            </HStack>
+            <List hasDividers>
               {list.map((r) => {
                 const canonicalId = linkedMap.get(r.id);
                 return (
-                  <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-200">{r.name}</p>
-                      <p className="text-xs text-zinc-500">
+                  <ListItem
+                    key={r.id}
+                    label={r.name}
+                    description={
+                      <>
                         {r.provider === "apple" && r.trackCount === 0
-                          ? "count loads on first sync"
+                          ? "Count loads on first sync"
                           : `${r.trackCount} tracks`}{" "}
-                        · scanned {timeAgo(r.lastScannedAt)}
-                        {!r.editable && <span className="text-amber-500"> · read-only</span>}
-                      </p>
-                    </div>
-                    {canonicalId ? (
-                      <Link href={`/playlists/${canonicalId}`} className="btn-secondary shrink-0">
-                        syncing →
-                      </Link>
-                    ) : (
-                      <Link href="/onboarding" className="btn-ghost shrink-0">
-                        set up sync
-                      </Link>
-                    )}
-                  </div>
+                        · Scanned <Ago date={r.lastScannedAt} />
+                        {!r.editable ? " · Read-only" : ""}
+                      </>
+                    }
+                    endContent={
+                      canonicalId ? (
+                        <Button label="View sync" variant="secondary" size="sm" href={`/playlists/${canonicalId}`} as={Link} />
+                      ) : (
+                        <Button label="Sync" variant="ghost" size="sm" href="/onboarding" as={Link} />
+                      )
+                    }
+                  />
                 );
               })}
-            </div>
-          </section>
+            </List>
+          </VStack>
         );
       })}
-    </div>
+    </VStack>
   );
 }

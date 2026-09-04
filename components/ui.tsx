@@ -1,56 +1,58 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
+import { Badge } from "@astryxdesign/core/Badge";
+import { EmptyState as AstryxEmptyState } from "@astryxdesign/core/EmptyState";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import { Token } from "@astryxdesign/core/Token";
 
-export function ProviderBadge({ provider }: { provider: string }) {
-  const isSpotify = provider === "spotify";
+export function ProviderToken({ provider }: { provider: string }) {
+  if (provider === "spotify") return <Token label="Spotify" color="green" size="sm" />;
+  if (provider === "apple") return <Token label="Apple Music" color="red" size="sm" />;
+  return <Token label={provider} size="sm" />;
+}
+
+const SYNC_STATUS: Record<string, { label: string; variant: "success" | "warning" | "error" | "neutral" }> = {
+  success: { label: "Synced", variant: "success" },
+  running: { label: "Syncing", variant: "warning" },
+  partial: { label: "Partial", variant: "warning" },
+  error: { label: "Failed", variant: "error" },
+};
+
+export function SyncStatus({ status, pulsing }: { status: string | null; pulsing?: boolean }) {
+  const meta = status ? SYNC_STATUS[status] : undefined;
+  if (!meta) {
+    return (
+      <HStack gap={2}>
+        <StatusDot variant="neutral" label="Not synced yet" />
+        <Text color="secondary">Not synced yet</Text>
+      </HStack>
+    );
+  }
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-        isSpotify ? "bg-[#1DB954]/15 text-[#1DB954]" : "bg-[#FA2D48]/15 text-[#FA2D48]"
-      }`}
-    >
-      {isSpotify ? "Spotify" : "Apple Music"}
-    </span>
+    <HStack gap={2}>
+      <StatusDot variant={meta.variant} label={meta.label} isPulsing={pulsing ?? meta.variant !== "success"} />
+      <Text color="secondary">{meta.label}</Text>
+    </HStack>
   );
 }
 
-export function StatusPill({ status }: { status: string | null }) {
-  const map: Record<string, string> = {
-    success: "bg-emerald-500/15 text-emerald-400",
-    running: "bg-amber-500/15 text-amber-400",
-    partial: "bg-amber-500/15 text-amber-400",
-    error: "bg-red-500/15 text-red-400",
-  };
-  const cls = status ? map[status] ?? "bg-zinc-700/40 text-zinc-400" : "bg-zinc-700/40 text-zinc-400";
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>{status ?? "never"}</span>;
+export function Ago({ date, short }: { date: Date | null | undefined; short?: boolean }) {
+  if (!date)
+    return (
+      <Text color="secondary" type="inherit">
+        never
+      </Text>
+    );
+  return <Timestamp value={date.toISOString()} format={short ? "relative_short" : "relative"} isLive />;
 }
 
-export function timeAgo(date: Date | null | undefined): string {
-  if (!date) return "never";
-  const s = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+export function CountBadge({ count }: { count: number }) {
+  return <Badge variant="neutral" label={String(count)} />;
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
-  return (
-    <div className="card flex flex-col items-center gap-3 py-12 text-center">
-      <p className="text-base font-semibold text-zinc-200">{title}</p>
-      <p className="max-w-md text-sm text-zinc-500">{body}</p>
-      {action}
-    </div>
-  );
+export function EmptyState({ title, body, action }: { title: string; body?: string; action?: React.ReactNode }) {
+  return <AstryxEmptyState title={title} description={body} actions={action} />;
 }
 
-export function Logo() {
-  return (
-    <Link href="/" className="flex items-center gap-2 font-semibold text-zinc-100">
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[#1DB954] to-[#FA2D48] text-xs font-black text-black">
-        ⇄
-      </span>
-      playlist-sync
-    </Link>
-  );
-}
+export { Timestamp };

@@ -5,6 +5,8 @@ import { musicConnections, playlistLinks, providerPlaylists } from "@/db/schema"
 import { getSessionUser } from "@/lib/auth";
 import { OnboardingPanel, type PlaylistCardData } from "@/components/OnboardingPanel";
 import { EmptyState } from "@/components/ui";
+import { Heading } from "@astryxdesign/core/Heading";
+import { VStack } from "@astryxdesign/core/VStack";
 
 export default async function OnboardingPage() {
   const user = await getSessionUser();
@@ -44,25 +46,20 @@ export default async function OnboardingPage() {
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Set up a sync</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Sync groups are opt-in. Everything else stays untouched.
-        </p>
-      </div>
+    <VStack gap={5}>
+      <Heading level={1}>New sync</Heading>
       {playlists.length === 0 ? (
         <EmptyState
-          title="No playlists indexed yet"
+          title="No playlists found"
           body={
             connected.size === 0
-              ? "Connect Spotify or Apple Music first — playlists get indexed automatically after connecting."
-              : "Hit “Refresh index” after adding playlists on your providers, or reconnect on the settings page."
+              ? "Connect a service first — playlists appear here automatically."
+              : "Add playlists on your connected services, then refresh."
           }
         />
       ) : (
         <OnboardingPanel playlists={playlists} bothConnected={connected.has("spotify") && connected.has("apple")} />
       )}
-    </div>
+    </VStack>
   );
 }

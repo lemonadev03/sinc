@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 
 declare global {
   interface Window {
@@ -29,7 +32,7 @@ export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
       const tokenRes = await fetch("/api/apple/developer-token");
       if (!tokenRes.ok) {
         const body = (await tokenRes.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "could not get developer token");
+        throw new Error(body?.error ?? "Could not get a developer token");
       }
       const { developerToken } = (await tokenRes.json()) as { developerToken: string };
 
@@ -41,7 +44,7 @@ export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
       const musicUserToken =
         typeof result === "string" ? result : result?.musicUserToken;
       if (!musicUserToken || musicUserToken.length < 20) {
-        throw new Error("Apple did not return a valid music user token");
+        throw new Error("Apple did not return a valid token");
       }
 
       const res = await fetch("/api/apple/connect", {
@@ -51,7 +54,7 @@ export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? "Apple Music connection was rejected");
+        throw new Error(body?.error ?? "Apple Music rejected the connection");
       }
       window.location.href = "/onboarding?connected=apple";
     } catch (err) {
@@ -61,15 +64,24 @@ export function AppleConnectButton({ disabled }: { disabled?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button type="button" className="btn-primary" disabled={disabled || state !== "idle" && state !== "error"} onClick={() => void connect()}>
-        {state === "idle" && "Connect Apple Music"}
-        {state === "loading" && "Loading MusicKit…"}
-        {state === "authorizing" && "Authorize in the popup…"}
-        {state === "error" && "Try again"}
-      </button>
-      {error && <p className="max-w-xs text-right text-xs text-red-400">{error}</p>}
-    </div>
+    <VStack gap={1}>
+      <Button
+        label={
+          state === "idle"
+            ? "Connect"
+            : state === "loading"
+              ? "Loading"
+              : state === "authorizing"
+                ? "Waiting for authorization"
+                : "Try again"
+        }
+        variant="primary"
+        isLoading={state === "loading" || state === "authorizing"}
+        isDisabled={disabled}
+        onClick={() => void connect()}
+      />
+      {error && <Text type="supporting">{error}</Text>}
+    </VStack>
   );
 }
 
@@ -79,7 +91,7 @@ function loadMusicKit(): Promise<void> {
     const script = document.createElement("script");
     script.src = MUSICKIT_SRC;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("failed to load MusicKit JS"));
+    script.onerror = () => reject(new Error("Could not load MusicKit"));
     document.body.appendChild(script);
   });
 }

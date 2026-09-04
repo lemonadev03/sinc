@@ -1,41 +1,46 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { deleteAccountAction } from "@/app/actions";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Tab, TabList } from "@astryxdesign/core/TabList";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 
 export default async function AccountPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
   return (
-    <div className="flex max-w-xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Account</h1>
-        <p className="mt-1 text-sm text-zinc-500">Signed in as {user.email}</p>
-      </div>
+    <VStack gap={5}>
+      <Heading level={1}>Settings</Heading>
+      <TabList value="account" onChange={() => {}} hasDivider>
+        <Tab value="connections" label="Connections" href="/settings/connections" as={Link} />
+        <Tab value="account" label="Account" href="/settings/account" as={Link} />
+      </TabList>
 
-      <div className="card">
-        <p className="font-semibold text-zinc-100">What syncs</p>
-        <p className="mt-1 text-sm text-zinc-500">
-          Sync is additive-only in v1: songs you add on either provider appear on the other; removing a
-          song never propagates. Canonical playlists in this app are the source of truth.
-        </p>
-      </div>
+      <Card>
+        <VStack gap={1}>
+          <Text weight="medium">Signed in as {user.email}</Text>
+          <Text type="supporting" color="secondary">
+            Sync is additive only — removing a song never propagates.
+          </Text>
+        </VStack>
+      </Card>
 
-      <div className="card border-red-900/40">
-        <p className="font-semibold text-red-300">Delete account</p>
-        <p className="mt-1 text-sm text-zinc-500">
-          Permanently deletes your account, stored provider credentials (tokens), playlist inventory,
-          canonical playlists, mappings, and sync history. This cannot be undone.
-        </p>
-        <form action={deleteAccountAction} className="mt-4">
-          <button
-            type="submit"
-            className="btn border border-red-800 bg-red-950/40 text-red-300 hover:bg-red-950/70"
-          >
-            Delete my account and all data
-          </button>
-        </form>
-      </div>
-    </div>
+      <Banner
+        status="error"
+        title="Delete account"
+        description="Removes your account, credentials, playlists, and sync history. This cannot be undone."
+        endContent={
+          <form action={deleteAccountAction}>
+            <Button label="Delete everything" variant="destructive" type="submit" />
+          </form>
+        }
+      />
+    </VStack>
   );
 }
